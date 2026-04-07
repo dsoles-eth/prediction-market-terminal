@@ -7,10 +7,11 @@ Caches everything in-memory, notifies listeners on update.
 
 import asyncio
 import json
+import os
 import time
 import requests
 from dataclasses import dataclass, field
-from typing import Optional, Callable, Awaitable
+from typing import Optional, Callable, Awaitable, List
 
 GAMMA_API   = "https://gamma-api.polymarket.com"
 DATA_API    = "https://data-api.polymarket.com"
@@ -202,12 +203,14 @@ class DataFeed:
         # Internal state
         self._prev_prices: dict[str, float]      = {}   # market_id -> best_yes_price
         self._listeners:   list[Callable]        = []
+        self._alert_listeners: list[Callable]    = []   # called with (List[PriceAlert],)
         self._running      = False
         self._lock         = asyncio.Lock()
         self.last_update:  float                 = 0.0
         self.status_msg:   str                   = "Connecting…"
         self.error_msg:    str                   = ""
         self.fetch_count:  int                   = 0
+        self._alert_manager = None   # set by app after init
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -289,6 +292,47 @@ class DataFeed:
             )
 
         await self._notify()
+        await self._check_alerts()
+
+    async def _check_alerts(self):
+        if self._alert_manager is None:
+            return
+        triggered = self._alert_manager.check_and_fire(self.by_condition)
+        if not triggered:
+            return
+        for alert in triggered:
+            await self._fire_alert(alert)
+
+    async def _fire_alert(self, alert):
+        """Send alert via Telegram if configured, otherwise notify listeners."""
+        msg = (
+            f"🔔 PM Alert: {alert.market_title[:60]}\n"
+            f"YES price crossed {alert.direction} {alert.threshold:.3f}"
+        )
+        tg_token = os.environ.get("PM_TERMINAL_TELEGRAM_TOKEN")
+        tg_chat  = os.environ.get("PM_TERMINAL_TELEGRAM_CHAT_ID")
+        if tg_token and tg_chat:
+            try:
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(
+                    None,
+                    lambda: requests.post(
+                        f"https://api.telegram.org/bot{tg_token}/sendMessage",
+                        json={"chat_id": tg_chat, "text": msg},
+                        timeout=8,
+                    )
+                )
+            except Exception:
+                pass
+        # Notify in-app listeners regardless
+        for cb in list(self._alert_listeners):
+            try:
+                await cb(alert)
+            except Exception:
+                pass
+
+    def add_alert_listener(self, coro: Callable):
+        self._alert_listeners.append(coro)
 
     def _process_markets(self, raw: list[dict]):
         new_markets: dict[str, Market] = {}

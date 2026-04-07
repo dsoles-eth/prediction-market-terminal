@@ -210,7 +210,7 @@ class MarketDetailModal(ModalScreen):
         self._render_chart()
         self._init_trades_table()
         self._init_orderbook_tables()
-        asyncio.create_task(self._load_async_data())
+        self.run_worker(self._load_async_data, exclusive=True)
 
     # ── Table init ────────────────────────────────────────────────────────────
 
@@ -271,10 +271,7 @@ class MarketDetailModal(ModalScreen):
     # ── Async data loading ────────────────────────────────────────────────────
 
     async def _load_async_data(self):
-        trades_task = asyncio.create_task(
-            self.feed.fetch_market_trades(self.market.condition_id)
-        )
-        self._trades = await trades_task
+        self._trades = await self.feed.fetch_market_trades(self.market.condition_id)
         self._refresh_trades_table()
 
         # Try to fetch orderbook for YES token (first outcome)

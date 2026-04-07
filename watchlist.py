@@ -10,9 +10,10 @@ import json
 import os
 from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 WATCHLIST_PATH = Path.home() / ".pm_terminal" / "watchlist.json"
+ALERTS_PATH    = Path.home() / ".pm_terminal" / "alerts.json"
 
 DEFAULT_WATCHLIST = [
     {
@@ -120,3 +121,79 @@ class Watchlist:
 
     def __iter__(self):
         return iter(self.entries)
+
+
+# ── Price Alerts ──────────────────────────────────────────────────────────────
+
+@dataclass
+class PriceAlert:
+    condition_id: str
+    market_title: str
+    threshold: float
+    direction: str      # "above" | "below"
+    current_price: float
+
+
+class AlertManager:
+    def __init__(self):
+        self._path = ALERTS_PATH
+        self.alerts: List[PriceAlert] = []
+        self._ensure_dir()
+        self.load()
+
+    def _ensure_dir(self):
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+
+    def load(self):
+        if self._path.exists():
+            try:
+                raw = json.loads(self._path.read_text())
+                self.alerts = [PriceAlert(**a) for a in raw]
+            except Exception:
+                self.alerts = []
+
+    def save(self):
+        self._ensure_dir()
+        self._path.write_text(
+            json.dumps([asdict(a) for a in self.alerts], indent=2)
+        )
+
+    def add(self, condition_id: str, market_title: str,
+            threshold: float, direction: str, current_price: float):
+        # Remove any existing alert for same market
+        self.alerts = [a for a in self.alerts if a.condition_id != condition_id]
+        self.alerts.append(PriceAlert(
+            condition_id=condition_id,
+            market_title=market_title,
+            threshold=threshold,
+            direction=direction,
+            current_price=current_price,
+        ))
+        self.save()
+
+    def remove(self, condition_id: str):
+        self.alerts = [a for a in self.alerts if a.condition_id != condition_id]
+        self.save()
+
+    def check_and_fire(self, by_condition: dict) -> List[PriceAlert]:
+        """Return alerts that have triggered. Removes them from the list."""
+        triggered: List[PriceAlert] = []
+        remaining: List[PriceAlert] = []
+        for alert in self.alerts:
+            market = by_condition.get(alert.condition_id)
+            if market is None:
+                remaining.append(alert)
+                continue
+            price = market.best_yes_price
+            fired = (
+                (alert.direction == "above" and price >= alert.threshold) or
+                (alert.direction == "below" and price <= alert.threshold)
+            )
+            if fired:
+                triggered.append(alert)
+            else:
+                remaining.append(alert)
+        if triggered:
+            self.alerts = remaining
+            self.save()
+        return triggered
