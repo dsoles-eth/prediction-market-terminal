@@ -85,7 +85,6 @@ class MarketDetailModal(ModalScreen):
 
     BINDINGS = [
         Binding("escape", "dismiss", "Close"),
-        Binding("q", "dismiss", "Close"),
         Binding("a", "add_watchlist", "Add to Watchlist"),
         Binding("r", "remove_watchlist", "Remove from Watchlist"),
     ]

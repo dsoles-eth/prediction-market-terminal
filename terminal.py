@@ -13,8 +13,16 @@ terminal.py — Polymarket Bloomberg Terminal
 from __future__ import annotations
 
 import asyncio
+import logging
+import traceback
 from datetime import datetime
 from typing import ClassVar, Optional
+
+logging.basicConfig(
+    filename="/tmp/pm_terminal_crash.log",
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s %(message)s",
+)
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -625,6 +633,12 @@ class PolymarketTerminal(App):
 
     async def on_unmount(self) -> None:
         await self.feed.stop()
+
+    def on_exception(self, error: Exception) -> None:
+        """Catch any unhandled Textual exception — log it instead of crashing."""
+        tb = traceback.format_exc()
+        logging.error(f"Unhandled exception: {error}\n{tb}")
+        self.notify(f"Error: {error}", severity="error", timeout=8)
 
     # ── Data callback ─────────────────────────────────────────────────────────
 

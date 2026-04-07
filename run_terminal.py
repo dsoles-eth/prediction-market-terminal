@@ -10,6 +10,15 @@ Usage:
 
 import argparse
 import sys
+import traceback
+import logging
+
+LOG_FILE = "/tmp/pm_terminal_crash.log"
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s %(message)s",
+)
 
 
 def main():
@@ -64,8 +73,21 @@ Panels:
     app = PolymarketTerminal(refresh_interval=args.refresh)
 
     print(f"Starting Polymarket Terminal (refresh: {args.refresh}s)…")
-    app.run()
+    logging.info(f"Starting Polymarket Terminal (refresh: {args.refresh}s)")
+    try:
+        app.run()
+        logging.info("App exited cleanly.")
+    except Exception as e:
+        tb = traceback.format_exc()
+        logging.error(f"App crashed: {e}\n{tb}")
+        print(f"CRASH: {e}\n{tb}", file=sys.stderr)
+        raise
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        tb = traceback.format_exc()
+        logging.error(f"main() crashed: {e}\n{tb}")
+        sys.exit(1)
