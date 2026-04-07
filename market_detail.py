@@ -210,7 +210,7 @@ class MarketDetailModal(ModalScreen):
         self._render_chart()
         self._init_trades_table()
         self._init_orderbook_tables()
-        self.run_worker(self._load_async_data, exclusive=True)
+        self.run_worker(self._load_async_data, exclusive=True, exit_on_error=False)
 
     # ── Table init ────────────────────────────────────────────────────────────
 
@@ -271,15 +271,22 @@ class MarketDetailModal(ModalScreen):
     # ── Async data loading ────────────────────────────────────────────────────
 
     async def _load_async_data(self):
-        self._trades = await self.feed.fetch_market_trades(self.market.condition_id)
-        self._refresh_trades_table()
+        try:
+            self._trades = await self.feed.fetch_market_trades(self.market.condition_id)
+        except Exception:
+            self._trades = []
+        try:
+            self._refresh_trades_table()
+        except Exception:
+            pass
 
-        # Try to fetch orderbook for YES token (first outcome)
-        # The CLOB API requires token_id; use condition_id as fallback
-        ob = await self.feed.fetch_orderbook(self.market.condition_id)
-        if ob:
-            self._orderbook = ob
-            self._refresh_orderbook(ob)
+        try:
+            ob = await self.feed.fetch_orderbook(self.market.condition_id)
+            if ob:
+                self._orderbook = ob
+                self._refresh_orderbook(ob)
+        except Exception:
+            pass
 
     def _refresh_trades_table(self):
         t: DataTable = self.query_one("#trades-table")

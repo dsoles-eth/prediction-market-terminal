@@ -666,7 +666,7 @@ class PolymarketTerminal(App):
 
     def action_manual_refresh(self):
         self.notify("Refreshing data…", timeout=2)
-        self.run_worker(self.feed._fetch_all, exclusive=False)
+        self.run_worker(self.feed._fetch_all, exclusive=False, exit_on_error=False)
 
     def action_cycle_sort(self):
         browser: MarketBrowserPanel = self.query_one("#browser-panel")
