@@ -575,7 +575,7 @@ class PolymarketTerminal(App):
     CSS     = APP_CSS
 
     BINDINGS = [
-        Binding("q",      "quit",           "Quit",      show=True),
+        Binding("ctrl+q", "quit",           "Quit",      show=True),
         Binding("r",      "manual_refresh", "Refresh",   show=True),
         Binding("s",      "cycle_sort",     "Sort",      show=True),
         Binding("f",      "cycle_filter",   "Filter",    show=True),
@@ -669,16 +669,25 @@ class PolymarketTerminal(App):
         self.run_worker(self.feed._fetch_all, exclusive=False, exit_on_error=False)
 
     def action_cycle_sort(self):
-        browser: MarketBrowserPanel = self.query_one("#browser-panel")
-        browser.cycle_sort()
+        try:
+            browser: MarketBrowserPanel = self.query_one("#browser-panel")
+            browser.cycle_sort()
+        except Exception:
+            pass
 
     def action_cycle_filter(self):
-        browser: MarketBrowserPanel = self.query_one("#browser-panel")
-        browser.cycle_category()
+        try:
+            browser: MarketBrowserPanel = self.query_one("#browser-panel")
+            browser.cycle_category()
+        except Exception:
+            pass
 
     def action_activate_search(self):
-        browser: MarketBrowserPanel = self.query_one("#browser-panel")
-        browser.activate_search()
+        try:
+            browser: MarketBrowserPanel = self.query_one("#browser-panel")
+            browser.activate_search()
+        except Exception:
+            pass
 
     def action_set_alert(self):
         market = self._get_focused_market()
@@ -708,17 +717,20 @@ class PolymarketTerminal(App):
 
     def action_inspect_market(self):
         """Open detail modal for the market under cursor."""
-        market = self._get_focused_market()
-        if market:
-            self.push_screen(
-                MarketDetailModal(
-                    market=market,
-                    feed=self.feed,
-                    watchlist=self.watchlist,
+        try:
+            market = self._get_focused_market()
+            if market:
+                self.push_screen(
+                    MarketDetailModal(
+                        market=market,
+                        feed=self.feed,
+                        watchlist=self.watchlist,
+                    )
                 )
-            )
-        else:
-            self.notify("Select a market first (use arrow keys)", severity="warning")
+            else:
+                self.notify("Select a market first (use arrow keys)", severity="warning")
+        except Exception:
+            pass
 
     def action_add_watchlist(self):
         market = self._get_focused_market()
@@ -803,17 +815,19 @@ class PolymarketTerminal(App):
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         """Double-click or Enter on a DataTable row."""
-        # Identify which table fired this
-        sender_id = event.data_table.id
-        if sender_id in ("browser-table", "movers-table"):
-            market_id = str(event.row_key.value) if event.row_key else None
-            if market_id:
-                market = self.feed.get_market(market_id)
-                if market:
-                    self.push_screen(
-                        MarketDetailModal(
-                            market=market,
-                            feed=self.feed,
-                            watchlist=self.watchlist,
+        try:
+            sender_id = event.data_table.id
+            if sender_id in ("browser-table", "movers-table"):
+                market_id = str(event.row_key.value) if event.row_key else None
+                if market_id:
+                    market = self.feed.get_market(market_id)
+                    if market:
+                        self.push_screen(
+                            MarketDetailModal(
+                                market=market,
+                                feed=self.feed,
+                                watchlist=self.watchlist,
+                            )
                         )
-                    )
+        except Exception:
+            pass
