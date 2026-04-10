@@ -69,7 +69,7 @@ When you press **ENTER** on a market, a detail modal appears:
 
 ```bash
 # 1. Clone
-git clone https://github.com/your-username/prediction-market-terminal
+git clone https://github.com/dsoles-eth/prediction-market-terminal
 cd prediction-market-terminal
 
 # 2. Install dependencies
